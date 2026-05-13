@@ -11,8 +11,9 @@ import {
   updateOrgMember,
   deleteOrgMember,
   setOrgMemberStatus,
+  getAllActiveUsers,
 } from '../../../../lib/firestore';
-import type { OrganizationalMember, OrgEntityType, ClubId } from '../../../../types';
+import type { OrganizationalMember, OrgEntityType, ClubId, UserProfile } from '../../../../types';
 import StructureManagementTable from '../../../../components/structure/StructureManagementTable';
 import StructureMemberForm from '../../../../components/structure/StructureMemberForm';
 
@@ -24,6 +25,7 @@ export default function StructureManagementPage() {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en);
 
   const [members, setMembers] = useState<OrganizationalMember[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<OrganizationalMember | null>(null);
@@ -39,10 +41,21 @@ export default function StructureManagementPage() {
 
   useEffect(() => {
     if (!isAdmin && !canViewClub) return;
-    getAllOrgMembers()
-      .then(setMembers)
-      .catch(() => toast.error(t('Failed to load.', 'فشل التحميل.')))
-      .finally(() => setLoading(false));
+    const loadAll = async () => {
+      try {
+        const [membersData, usersData] = await Promise.all([
+          getAllOrgMembers(),
+          isAdmin ? getAllActiveUsers() : Promise.resolve([]),
+        ]);
+        setMembers(membersData);
+        setUsers(usersData);
+      } catch {
+        toast.error(t('Failed to load.', 'فشل التحميل.'));
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAll();
   }, [isAdmin, canViewClub]);
 
   if (!isAdmin && !canViewClub) {
@@ -231,6 +244,8 @@ export default function StructureManagementPage() {
                 lang={lang}
                 initial={editing ?? undefined}
                 currentUid={userProfile?.uid ?? ''}
+                isAdmin={isAdmin}
+                users={users}
                 onSave={handleSave}
                 onCancel={() => { setShowForm(false); setEditing(null); }}
               />

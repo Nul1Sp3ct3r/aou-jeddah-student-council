@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import type { OrganizationalMember, OrgEntityType, OrgRoleCategory, ClubId } from '../../types';
-import { ORG_ROLE_LABELS, CLUBS } from '../../types';
+import { useState, useMemo } from 'react';
+import { Link2, UserCheck, User } from 'lucide-react';
+import type { OrganizationalMember, OrgMemberStatus, ClubId } from '../../types';
+import type { UserProfile } from '../../types';
+import { CLUBS } from '../../types';
+import { ORG_POSITION_OPTIONS, getOrgPositionById } from '../../lib/orgPositions';
 
 type FormData = Omit<OrganizationalMember, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -10,29 +13,39 @@ interface Props {
   lang: 'en' | 'ar';
   initial?: OrganizationalMember;
   currentUid: string;
+  isAdmin: boolean;
+  users: UserProfile[];
   onSave: (data: FormData) => Promise<void>;
   onCancel: () => void;
 }
 
-const ROLE_CATEGORIES: OrgRoleCategory[] = [
-  'council_president', 'council_vice_president', 'council_secretary',
-  'council_officer', 'clubs_supervisor', 'club_president', 'club_vice_president', 'club_member',
-];
+function findInitialPositionId(initial?: OrganizationalMember): string {
+  if (!initial) return ORG_POSITION_OPTIONS[0].id;
+  const byBoth = ORG_POSITION_OPTIONS.find(
+    (p) => p.roleCategory === initial.roleCategory && p.labelEn === initial.positionEn,
+  );
+  if (byBoth) return byBoth.id;
+  const byRole = ORG_POSITION_OPTIONS.find((p) => p.roleCategory === initial.roleCategory);
+  return byRole?.id ?? ORG_POSITION_OPTIONS[0].id;
+}
 
-const ENTITY_TYPES: { value: OrgEntityType; en: string; ar: string }[] = [
-  { value: 'student_council', en: 'Student Council', ar: 'المجلس الطلابي' },
-  { value: 'club', en: 'Club', ar: 'نادي' },
-];
+const councilPositions = ORG_POSITION_OPTIONS.filter((p) => p.entityType === 'student_council');
+const clubPositions = ORG_POSITION_OPTIONS.filter((p) => p.entityType === 'club');
 
-export default function StructureMemberForm({ lang, initial, currentUid, onSave, onCancel }: Props) {
+export default function StructureMemberForm({ lang, initial, currentUid, isAdmin, users, onSave, onCancel }: Props) {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en);
   const [saving, setSaving] = useState(false);
+  const [positionId, setPositionId] = useState(findInitialPositionId(initial));
+  const [linkedMode, setLinkedMode] = useState(isAdmin && !!initial?.userId);
+  const [userSearch, setUserSearch] = useState('');
+
+  const selectedPosition = getOrgPositionById(positionId) ?? ORG_POSITION_OPTIONS[0];
 
   const [form, setForm] = useState<FormData>({
     fullNameAr: initial?.fullNameAr ?? '',
     fullNameEn: initial?.fullNameEn ?? '',
-    positionAr: initial?.positionAr ?? '',
-    positionEn: initial?.positionEn ?? '',
+    positionAr: initial?.positionAr ?? selectedPosition.labelAr,
+    positionEn: initial?.positionEn ?? selectedPosition.labelEn,
     bioAr: initial?.bioAr ?? '',
     bioEn: initial?.bioEn ?? '',
     email: initial?.email ?? '',
@@ -40,10 +53,11 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
     major: initial?.major ?? '',
     imageUrl: initial?.imageUrl ?? '',
     linkedInUrl: initial?.linkedInUrl ?? '',
-    entityType: initial?.entityType ?? 'student_council',
+    userId: initial?.userId,
+    entityType: initial?.entityType ?? selectedPosition.entityType,
     clubId: initial?.clubId,
-    roleCategory: initial?.roleCategory ?? 'council_officer',
-    displayOrder: initial?.displayOrder ?? 99,
+    roleCategory: initial?.roleCategory ?? selectedPosition.roleCategory,
+    displayOrder: initial?.displayOrder ?? selectedPosition.defaultDisplayOrder,
     status: initial?.status ?? 'active',
     termYear: initial?.termYear ?? '2025-2026',
     createdByUid: initial?.createdByUid ?? currentUid,
@@ -52,6 +66,55 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handlePositionChange(id: string) {
+    const pos = getOrgPositionById(id);
+    if (!pos) return;
+    setPositionId(id);
+    setForm((prev) => ({
+      ...prev,
+      positionEn: pos.labelEn,
+      positionAr: pos.labelAr,
+      roleCategory: pos.roleCategory,
+      entityType: pos.entityType,
+      displayOrder: pos.defaultDisplayOrder,
+      clubId: pos.requiresClub ? prev.clubId : undefined,
+    }));
+  }
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.displayName.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q),
+    );
+  }, [users, userSearch]);
+
+  function handleUserSelect(uid: string) {
+    const user = users.find((u) => u.uid === uid);
+    if (!user) {
+      set('userId', undefined);
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      userId: user.uid,
+      fullNameEn: user.displayName,
+      fullNameAr: user.displayNameAr || user.displayName,
+      email: user.email,
+    }));
+  }
+
+  function handleModeSwitch(mode: 'linked' | 'manual') {
+    if (mode === 'manual') {
+      setLinkedMode(false);
+      set('userId', undefined);
+    } else {
+      setLinkedMode(true);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -65,27 +128,135 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
   }
 
   const inputClass = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 bg-white';
+  const inputReadOnly = 'w-full px-3 py-2 rounded-lg border border-gray-100 text-sm bg-gray-50 text-gray-500 cursor-not-allowed';
   const labelClass = 'block text-xs font-semibold text-gray-600 mb-1';
 
+  const namesReadOnly = linkedMode && !!form.userId;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      {/* Names */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <form onSubmit={handleSubmit} className="space-y-5" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+
+      {/* ── Position ─────────────────────────────────────────────────────────── */}
+      <div>
+        <label className={labelClass}>{t('Position', 'المنصب')} *</label>
+        <select
+          required
+          className={inputClass}
+          value={positionId}
+          onChange={(e) => handlePositionChange(e.target.value)}
+        >
+          <optgroup label={t('Student Council', 'المجلس الطلابي')}>
+            {councilPositions.map((p) => (
+              <option key={p.id} value={p.id}>{t(p.labelEn, p.labelAr)}</option>
+            ))}
+          </optgroup>
+          <optgroup label={t('Club', 'النادي')}>
+            {clubPositions.map((p) => (
+              <option key={p.id} value={p.id}>{t(p.labelEn, p.labelAr)}</option>
+            ))}
+          </optgroup>
+        </select>
+      </div>
+
+      {/* Club selector — shown only for positions that require a club */}
+      {selectedPosition.requiresClub && (
         <div>
-          <label className={labelClass}>{t('Full Name (English)', 'الاسم الكامل (إنجليزي)')}</label>
-          <input
+          <label className={labelClass}>{t('Club', 'النادي')} *</label>
+          <select
             required
             className={inputClass}
+            value={form.clubId ?? ''}
+            onChange={(e) => set('clubId', (e.target.value as ClubId) || undefined)}
+          >
+            <option value="">{t('Select a club...', 'اختر ناديًا...')}</option>
+            {CLUBS.map((c) => (
+              <option key={c.id} value={c.id}>{t(c.name, c.nameAr)}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* ── Member entry mode (admin only) ───────────────────────────────────── */}
+      {isAdmin && (
+        <div>
+          <p className={labelClass}>{t('Entry mode', 'وضع الإدخال')}</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('linked')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                linkedMode ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              style={linkedMode ? { backgroundColor: 'var(--navy)' } : {}}
+            >
+              <Link2 className="w-3 h-3" />
+              {t('Link Account', 'ربط بحساب')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('manual')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                !linkedMode ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              style={!linkedMode ? { backgroundColor: 'var(--navy)' } : {}}
+            >
+              <User className="w-3 h-3" />
+              {t('Manual Entry', 'إدخال يدوي')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* User selector — shown in linked mode (admin only) */}
+      {isAdmin && linkedMode && (
+        <div className="rounded-xl p-3 space-y-2 border border-blue-100" style={{ backgroundColor: '#eff6ff' }}>
+          <label className={labelClass}>{t('Search and select user', 'ابحث عن مستخدم واختره')}</label>
+          <input
+            className={inputClass}
+            placeholder={t('Search by name or email...', 'ابحث بالاسم أو البريد الإلكتروني...')}
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+          />
+          <select
+            className={inputClass}
+            value={form.userId ?? ''}
+            onChange={(e) => handleUserSelect(e.target.value)}
+          >
+            <option value="">{t('— Select a user —', '— اختر مستخدمًا —')}</option>
+            {filteredUsers.map((u) => (
+              <option key={u.uid} value={u.uid}>
+                {u.displayName} ({u.email})
+              </option>
+            ))}
+          </select>
+          {form.userId && (
+            <p className="text-xs text-blue-700 flex items-center gap-1">
+              <UserCheck className="w-3 h-3" />
+              {t('Account linked — name and email auto-filled.', 'تم ربط الحساب — تم ملء الاسم والبريد تلقائيًا.')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── Names ────────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>{t('Full Name (English)', 'الاسم الكامل (إنجليزي)')} *</label>
+          <input
+            required
+            className={namesReadOnly ? inputReadOnly : inputClass}
+            readOnly={namesReadOnly}
             value={form.fullNameEn}
             onChange={(e) => set('fullNameEn', e.target.value)}
             placeholder="Full Name"
           />
         </div>
         <div>
-          <label className={labelClass}>{t('Full Name (Arabic)', 'الاسم الكامل (عربي)')}</label>
+          <label className={labelClass}>{t('Full Name (Arabic)', 'الاسم الكامل (عربي)')} *</label>
           <input
             required
-            className={inputClass}
+            className={namesReadOnly ? inputReadOnly : inputClass}
+            readOnly={namesReadOnly}
             value={form.fullNameAr}
             onChange={(e) => set('fullNameAr', e.target.value)}
             placeholder="الاسم الكامل"
@@ -94,32 +265,7 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
         </div>
       </div>
 
-      {/* Positions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelClass}>{t('Position (English)', 'المنصب (إنجليزي)')}</label>
-          <input
-            required
-            className={inputClass}
-            value={form.positionEn}
-            onChange={(e) => set('positionEn', e.target.value)}
-            placeholder="Position"
-          />
-        </div>
-        <div>
-          <label className={labelClass}>{t('Position (Arabic)', 'المنصب (عربي)')}</label>
-          <input
-            required
-            className={inputClass}
-            value={form.positionAr}
-            onChange={(e) => set('positionAr', e.target.value)}
-            placeholder="المنصب"
-            dir="rtl"
-          />
-        </div>
-      </div>
-
-      {/* Bio */}
+      {/* ── Bio ──────────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={labelClass}>{t('Bio (English)', 'النبذة (إنجليزية)')}</label>
@@ -144,58 +290,14 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
         </div>
       </div>
 
-      {/* Entity & Role */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className={labelClass}>{t('Entity Type', 'نوع الجهة')}</label>
-          <select
-            className={inputClass}
-            value={form.entityType}
-            onChange={(e) => set('entityType', e.target.value as OrgEntityType)}
-          >
-            {ENTITY_TYPES.map((et) => (
-              <option key={et.value} value={et.value}>{t(et.en, et.ar)}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>{t('Role Category', 'فئة الدور')}</label>
-          <select
-            className={inputClass}
-            value={form.roleCategory}
-            onChange={(e) => set('roleCategory', e.target.value as OrgRoleCategory)}
-          >
-            {ROLE_CATEGORIES.map((rc) => (
-              <option key={rc} value={rc}>{t(ORG_ROLE_LABELS[rc].en, ORG_ROLE_LABELS[rc].ar)}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Club (if entity type is club) */}
-      {form.entityType === 'club' && (
-        <div>
-          <label className={labelClass}>{t('Club', 'النادي')}</label>
-          <select
-            className={inputClass}
-            value={form.clubId ?? ''}
-            onChange={(e) => set('clubId', e.target.value as ClubId || undefined)}
-          >
-            <option value="">{t('Select a club...', 'اختر ناديًا...')}</option>
-            {CLUBS.map((c) => (
-              <option key={c.id} value={c.id}>{t(c.name, c.nameAr)}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Optional fields */}
+      {/* ── Optional details ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={labelClass}>{t('Email (optional)', 'البريد الإلكتروني (اختياري)')}</label>
           <input
             type="email"
-            className={inputClass}
+            className={namesReadOnly ? inputReadOnly : inputClass}
+            readOnly={namesReadOnly}
             value={form.email ?? ''}
             onChange={(e) => set('email', e.target.value || undefined)}
             placeholder="email@aou.edu.sa"
@@ -235,7 +337,7 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
         </div>
       </div>
 
-      {/* Display order, status, term */}
+      {/* ── Settings ─────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className={labelClass}>{t('Display Order', 'ترتيب العرض')}</label>
@@ -252,7 +354,7 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
           <select
             className={inputClass}
             value={form.status}
-            onChange={(e) => set('status', e.target.value as 'active' | 'inactive')}
+            onChange={(e) => set('status', e.target.value as OrgMemberStatus)}
           >
             <option value="active">{t('Active', 'نشط')}</option>
             <option value="inactive">{t('Inactive', 'غير نشط')}</option>
@@ -269,7 +371,7 @@ export default function StructureMemberForm({ lang, initial, currentUid, onSave,
         </div>
       </div>
 
-      {/* Actions */}
+      {/* ── Actions ──────────────────────────────────────────────────────────── */}
       <div className="flex gap-3 pt-2">
         <button
           type="submit"

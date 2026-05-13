@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Edit2, Trash2, ToggleLeft, ToggleRight, Link2 } from 'lucide-react';
 import type { OrganizationalMember, ClubId } from '../../types';
 import { ORG_ROLE_LABELS, CLUBS } from '../../types';
 import MemberRoleBadge from './MemberRoleBadge';
@@ -88,6 +88,16 @@ export default function StructureManagementTable({
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{t(m.fullNameEn, m.fullNameAr)}</p>
                     <p className="text-xs text-gray-400 truncate">{t(m.positionEn, m.positionAr)}</p>
+                    {m.userId ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium mt-0.5">
+                        <Link2 className="w-2.5 h-2.5" />
+                        {t('Linked', 'مرتبط')}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium mt-0.5">
+                        {t('Manual', 'يدوي')}
+                      </span>
+                    )}
                   </div>
                 </div>
               </td>

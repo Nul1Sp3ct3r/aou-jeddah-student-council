@@ -9,10 +9,8 @@ import type { OrganizationalMember } from '../../../types';
 import { getActiveOrgMembers } from '../../../lib/firestore';
 import { DEMO_ORG_MEMBERS } from '../../../lib/structureDemo';
 import StructureHero from '../../../components/structure/StructureHero';
-import LeadershipCard from '../../../components/structure/LeadershipCard';
 import ClubStructureCard from '../../../components/structure/ClubStructureCard';
 import OrganizationChart from '../../../components/structure/OrganizationChart';
-import EmptyStructureState from '../../../components/structure/EmptyStructureState';
 
 export default function StructurePage() {
   const { lang } = useLang();
@@ -52,18 +50,6 @@ export default function StructurePage() {
   const clubLeaders = clubMembersAll.filter(
     (m) => m.roleCategory === 'club_president' || m.roleCategory === 'club_vice_president',
   ).length;
-
-  const COUNCIL_LEADER_CATEGORIES = [
-    'council_president',
-    'council_vice_president',
-    'council_secretary',
-    'council_officer',
-    'clubs_supervisor',
-  ] as const;
-
-  const councilLeadCards = councilMembers.filter((m) =>
-    (COUNCIL_LEADER_CATEGORIES as readonly string[]).includes(m.roleCategory),
-  );
 
   return (
     <PublicLayout>
@@ -128,31 +114,6 @@ export default function StructurePage() {
 
         {!loading && (
           <>
-            {/* ── Student Council Leadership ───────────────────────────────────── */}
-            <section className="py-16" style={{ backgroundColor: 'var(--bg)' }}>
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-10">
-                  <h2 className="text-3xl font-extrabold mb-2" style={{ color: 'var(--navy)' }}>
-                    {t('Student Council Leadership', 'قيادة المجلس الطلابي')}
-                  </h2>
-                  <div
-                    className="w-16 h-1 rounded-full mx-auto"
-                    style={{ backgroundColor: 'var(--gold)' }}
-                  />
-                </div>
-
-                {councilLeadCards.length === 0 ? (
-                  <EmptyStructureState lang={lang} variant="council" />
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
-                    {councilLeadCards.map((m) => (
-                      <LeadershipCard key={m.id} member={m} lang={lang} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
             {/* ── Organization Chart ───────────────────────────────────────────── */}
             <section className="py-16 bg-white">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

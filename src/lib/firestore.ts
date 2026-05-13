@@ -64,6 +64,22 @@ export async function getAllUsers(): Promise<UserProfile[]> {
   });
 }
 
+export async function getAllActiveUsers(): Promise<UserProfile[]> {
+  const snap = await getDocs(
+    query(collection(db, 'users'), where('isActive', '==', true)),
+  );
+  return snap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        ...data,
+        createdAt: data.createdAt?.toDate?.() ?? new Date(),
+        updatedAt: data.updatedAt?.toDate?.() ?? new Date(),
+      } as UserProfile;
+    })
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 // ─── Events ───────────────────────────────────────────────────────────────────
 
 function toEvent(id: string, data: Record<string, unknown>): Event {

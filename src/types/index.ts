@@ -341,6 +341,7 @@ export interface OrganizationalMember {
   major?: string;
   imageUrl?: string;
   linkedInUrl?: string;
+  userId?: string;
   entityType: OrgEntityType;
   clubId?: ClubId;
   roleCategory: OrgRoleCategory;
