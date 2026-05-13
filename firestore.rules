@@ -1,0 +1,146 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper functions ─────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return getRole() in ['super_admin', 'council_admin'];
+    }
+
+    function isClubLeader() {
+      return getRole() in ['super_admin', 'council_admin', 'club_president', 'club_vice_president'];
+    }
+
+    // ─── Users ────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && (
+        (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['role', 'clubId'])) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─── Events ───────────────────────────────────────────────────────────────
+
+    match /events/{eventId} {
+      allow read: if resource.data.status in ['published', 'completed']
+                  || (isSignedIn() && (
+                       isAdmin() ||
+                       resource.data.organizerId == request.auth.uid ||
+                       isClubLeader()
+                     ));
+      allow create: if isSignedIn() && isClubLeader();
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.organizerId == request.auth.uid &&
+         resource.data.status in ['draft', 'needs_edits'])
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.organizerId == request.auth.uid &&
+         resource.data.status == 'draft')
+      );
+    }
+
+    // ─── Registrations ────────────────────────────────────────────────────────
+
+    match /registrations/{regId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid ||
+        isClubLeader() ||
+        isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (isAdmin() || isClubLeader());
+      allow delete: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // ─── Media Requests ───────────────────────────────────────────────────────
+
+    match /mediaRequests/{reqId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isClubLeader();
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        getRole() in ['media_club_member', 'club_president', 'club_vice_president']
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─── Support Requests ─────────────────────────────────────────────────────
+
+    match /supportRequests/{reqId} {
+      allow read: if isSignedIn() && (
+        resource.data.submittedBy == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Club Registration Settings ───────────────────────────────────────────
+
+    match /clubRegistrationSettings/{settingId} {
+      // Any signed-in user can read (students need to check if registration is open)
+      allow read: if isSignedIn();
+      // Only admins can change registration settings
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    // ─── Club Applications ────────────────────────────────────────────────────
+
+    match /clubApplications/{appId} {
+      // Students can read their own; club leaders and admins can read all
+      allow read: if isSignedIn() && (
+        resource.data.studentUid == request.auth.uid ||
+        isAdmin() ||
+        isClubLeader()
+      );
+      // Any signed-in user can submit an application
+      allow create: if isSignedIn();
+      // Student can cancel their own pending application; admins/leaders can review
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        isClubLeader() ||
+        (resource.data.studentUid == request.auth.uid &&
+         resource.data.status == 'pending')
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ─── Club Memberships ─────────────────────────────────────────────────────
+
+    match /clubMemberships/{membershipId} {
+      // Students can read their own; club leaders and admins can read all
+      allow read: if isSignedIn() && (
+        resource.data.studentUid == request.auth.uid ||
+        isAdmin() ||
+        isClubLeader()
+      );
+      // Created by admins or club leaders when accepting an application
+      allow create: if isSignedIn() && isClubLeader();
+      allow update: if isSignedIn() && isClubLeader();
+      allow delete: if isAdmin();
+    }
+  }
+}
