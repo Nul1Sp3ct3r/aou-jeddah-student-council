@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Calendar, Users, Plus, ClipboardList,
   FileText, Settings, Camera, HelpCircle, X, Shield, BarChart3,
-  UserPlus, ListChecks, ToggleLeft,
+  UserPlus, ListChecks, ToggleLeft, Network,
 } from 'lucide-react';
 import type { UserRole, ClubId } from '../../types';
 import { CLUBS } from '../../types';
@@ -64,6 +64,7 @@ export default function DashboardSidebar({ role, clubId, lang, onClose }: Sideba
     { href: '/dashboard/club', icon: Users, en: 'My Club', ar: 'ناديي' },
     { href: '/dashboard/attendance', icon: ClipboardList, en: 'Attendance', ar: 'الحضور' },
     { href: '/dashboard/media-requests', icon: Camera, en: 'Media Requests', ar: 'طلبات الإعلام' },
+    { href: '/dashboard/structure', icon: Network, en: 'Structure', ar: 'الهيكل التنظيمي' },
   ];
 
   const memberLinks = [
@@ -75,6 +76,7 @@ export default function DashboardSidebar({ role, clubId, lang, onClose }: Sideba
     { href: '/dashboard/club-registration', icon: ToggleLeft, en: 'Club Registration', ar: 'إدارة التسجيل في الأندية' },
     { href: '/dashboard/club-applications', icon: ClipboardList, en: 'Club Applications', ar: 'طلبات الانضمام' },
     { href: '/dashboard/admin/users', icon: Users, en: 'User Management', ar: 'إدارة المستخدمين' },
+    { href: '/dashboard/structure', icon: Network, en: 'Structure', ar: 'الهيكل التنظيمي' },
     { href: '/dashboard/admin/reports', icon: BarChart3, en: 'Reports', ar: 'التقارير' },
   ];
 

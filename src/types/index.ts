@@ -311,3 +311,55 @@ export const PREFERRED_ROLE_LABELS: Record<PreferredRole, { en: string; ar: stri
   technical_support:{ en: 'Technical Support',ar: 'دعم تقني'     },
   volunteer:        { en: 'Volunteer',        ar: 'متطوع'        },
 };
+
+// ─── Organizational Structure ─────────────────────────────────────────────────
+
+export type OrgEntityType = 'student_council' | 'club';
+
+export type OrgRoleCategory =
+  | 'council_president'
+  | 'council_vice_president'
+  | 'council_secretary'
+  | 'council_officer'
+  | 'clubs_supervisor'
+  | 'club_president'
+  | 'club_vice_president'
+  | 'club_member';
+
+export type OrgMemberStatus = 'active' | 'inactive';
+
+export interface OrganizationalMember {
+  id: string;
+  fullNameAr: string;
+  fullNameEn: string;
+  positionAr: string;
+  positionEn: string;
+  bioAr: string;
+  bioEn: string;
+  email?: string;
+  phone?: string;
+  major?: string;
+  imageUrl?: string;
+  linkedInUrl?: string;
+  entityType: OrgEntityType;
+  clubId?: ClubId;
+  roleCategory: OrgRoleCategory;
+  displayOrder: number;
+  status: OrgMemberStatus;
+  termYear: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUid: string;
+  updatedByUid: string;
+}
+
+export const ORG_ROLE_LABELS: Record<OrgRoleCategory, { en: string; ar: string }> = {
+  council_president:      { en: 'Student Council President',  ar: 'رئيس المجلس الطلابي'      },
+  council_vice_president: { en: 'Vice President',             ar: 'نائب رئيس المجلس'          },
+  council_secretary:      { en: 'Secretary / Coordinator',    ar: 'أمين المجلس / منسق المجلس' },
+  council_officer:        { en: 'Council Officer',            ar: 'مسؤول في المجلس'           },
+  clubs_supervisor:       { en: 'Clubs Supervisor',           ar: 'مشرف الأندية'              },
+  club_president:         { en: 'Club President',             ar: 'رئيس النادي'               },
+  club_vice_president:    { en: 'Club Vice President',        ar: 'نائب رئيس النادي'          },
+  club_member:            { en: 'Club Member',                ar: 'عضو النادي'                },
+};

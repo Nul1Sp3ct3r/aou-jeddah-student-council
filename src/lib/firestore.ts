@@ -20,6 +20,7 @@ import { db } from './firebase';
 import type {
   UserProfile, Event, EventRegistration, MediaRequest, SupportRequest, ClubId, EventStatus,
   ClubRegistrationSettings, ClubApplication, ClubMembership,
+  OrganizationalMember, OrgMemberStatus,
 } from '../types';
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -453,4 +454,60 @@ export async function getAllActiveClubMemberships(): Promise<ClubMembership[]> {
     query(collection(db, 'clubMemberships'), where('status', '==', 'active')),
   );
   return snap.docs.map((d) => toClubMembership(d.id, d.data() as Record<string, unknown>));
+}
+
+// ─── Organizational Structure ─────────────────────────────────────────────────
+
+function toOrgMember(id: string, data: Record<string, unknown>): OrganizationalMember {
+  return {
+    ...data,
+    id,
+    createdAt: (data.createdAt as Timestamp)?.toDate?.() ?? new Date(),
+    updatedAt: (data.updatedAt as Timestamp)?.toDate?.() ?? new Date(),
+  } as OrganizationalMember;
+}
+
+export async function getActiveOrgMembers(): Promise<OrganizationalMember[]> {
+  const snap = await getDocs(
+    query(collection(db, 'organizationalMembers'), where('status', '==', 'active')),
+  );
+  return snap.docs
+    .map((d) => toOrgMember(d.id, d.data() as Record<string, unknown>))
+    .sort((a, b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity));
+}
+
+export async function getAllOrgMembers(): Promise<OrganizationalMember[]> {
+  const snap = await getDocs(
+    query(collection(db, 'organizationalMembers'), orderBy('displayOrder', 'asc')),
+  );
+  return snap.docs.map((d) => toOrgMember(d.id, d.data() as Record<string, unknown>));
+}
+
+export async function createOrgMember(
+  data: Omit<OrganizationalMember, 'id' | 'createdAt' | 'updatedAt'>,
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'organizationalMembers'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateOrgMember(
+  id: string,
+  data: Partial<Omit<OrganizationalMember, 'id' | 'createdAt'>>,
+): Promise<void> {
+  await updateDoc(doc(db, 'organizationalMembers', id), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteOrgMember(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'organizationalMembers', id));
+}
+
+export async function setOrgMemberStatus(id: string, status: OrgMemberStatus, updatedByUid: string): Promise<void> {
+  await updateDoc(doc(db, 'organizationalMembers', id), { status, updatedByUid, updatedAt: serverTimestamp() });
 }

@@ -16,6 +16,7 @@ const navLinks = [
   { href: '/', en: 'Home', ar: 'الرئيسية' },
   { href: '/clubs', en: 'Clubs', ar: 'الأندية' },
   { href: '/events', en: 'Events', ar: 'الفعاليات' },
+  { href: '/structure', en: 'Structure', ar: 'الهيكل التنظيمي' },
   { href: '/about', en: 'About', ar: 'عن المنصة' },
 ];
 
