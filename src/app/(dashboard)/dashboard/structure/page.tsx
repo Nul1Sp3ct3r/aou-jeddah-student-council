@@ -92,6 +92,7 @@ export default function StructureManagementPage() {
     }
     setShowForm(false);
     setEditing(null);
+    // Re-throw is handled by the form's own catch block
   }
 
   async function handleDelete(id: string) {

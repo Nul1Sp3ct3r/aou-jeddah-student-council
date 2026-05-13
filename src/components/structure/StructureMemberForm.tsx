@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Link2, UserCheck, User } from 'lucide-react';
+import toast from 'react-hot-toast';
 import type { OrganizationalMember, OrgMemberStatus, ClubId } from '../../types';
 import type { UserProfile } from '../../types';
 import { CLUBS } from '../../types';
@@ -119,9 +120,23 @@ export default function StructureMemberForm({ lang, initial, currentUid, isAdmin
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.fullNameEn.trim()) {
+      toast.error(t('Please enter the full name in English.', 'يرجى إدخال الاسم الكامل بالإنجليزية.'));
+      return;
+    }
+    if (!form.fullNameAr.trim()) {
+      toast.error(t('Please enter the full name in Arabic.', 'يرجى إدخال الاسم الكامل بالعربية.'));
+      return;
+    }
+    if (selectedPosition.requiresClub && !form.clubId) {
+      toast.error(t('Please select a club for this position.', 'يرجى اختيار النادي لهذا المنصب.'));
+      return;
+    }
     setSaving(true);
     try {
       await onSave(form);
+    } catch {
+      toast.error(t('Failed to save. Please try again.', 'فشل الحفظ. يرجى المحاولة مجددًا.'));
     } finally {
       setSaving(false);
     }
@@ -134,7 +149,7 @@ export default function StructureMemberForm({ lang, initial, currentUid, isAdmin
   const namesReadOnly = linkedMode && !!form.userId;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <form onSubmit={handleSubmit} className="space-y-5" dir={lang === 'ar' ? 'rtl' : 'ltr'} noValidate>
 
       {/* ── Position ─────────────────────────────────────────────────────────── */}
       <div>

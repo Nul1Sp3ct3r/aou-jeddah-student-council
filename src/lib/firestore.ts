@@ -502,11 +502,14 @@ export async function getAllOrgMembers(): Promise<OrganizationalMember[]> {
 export async function createOrgMember(
   data: Omit<OrganizationalMember, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<string> {
-  const ref = await addDoc(collection(db, 'organizationalMembers'), {
-    ...data,
+  const payload: Record<string, unknown> = {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (value !== undefined) payload[key] = value;
+  }
+  const ref = await addDoc(collection(db, 'organizationalMembers'), payload);
   return ref.id;
 }
 
@@ -514,10 +517,11 @@ export async function updateOrgMember(
   id: string,
   data: Partial<Omit<OrganizationalMember, 'id' | 'createdAt'>>,
 ): Promise<void> {
-  await updateDoc(doc(db, 'organizationalMembers', id), {
-    ...data,
-    updatedAt: serverTimestamp(),
-  });
+  const payload: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    payload[key] = value === undefined ? deleteField() : value;
+  }
+  await updateDoc(doc(db, 'organizationalMembers', id), payload);
 }
 
 export async function deleteOrgMember(id: string): Promise<void> {
