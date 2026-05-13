@@ -41,21 +41,13 @@ export default function StructureManagementPage() {
 
   useEffect(() => {
     if (!isAdmin && !canViewClub) return;
-    const loadAll = async () => {
-      try {
-        const [membersData, usersData] = await Promise.all([
-          getAllOrgMembers(),
-          isAdmin ? getAllActiveUsers() : Promise.resolve([]),
-        ]);
-        setMembers(membersData);
-        setUsers(usersData);
-      } catch {
-        toast.error(t('Failed to load.', 'فشل التحميل.'));
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadAll();
+    getAllOrgMembers()
+      .then(setMembers)
+      .catch(() => toast.error(t('Failed to load.', 'فشل التحميل.')))
+      .finally(() => setLoading(false));
+    if (isAdmin) {
+      getAllActiveUsers().then(setUsers).catch(() => {});
+    }
   }, [isAdmin, canViewClub]);
 
   if (!isAdmin && !canViewClub) {
