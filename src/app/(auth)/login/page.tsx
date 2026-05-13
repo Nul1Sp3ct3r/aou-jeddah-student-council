@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -23,10 +23,17 @@ export default function LoginPage() {
   const { lang, setLang } = useLang();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, firebaseUser, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en);
+
+  // Redirect to dashboard when returning from Google redirect sign-in
+  useEffect(() => {
+    if (!authLoading && firebaseUser) {
+      router.push('/dashboard');
+    }
+  }, [firebaseUser, authLoading, router]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -54,11 +61,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithGoogle();
-      toast.success(t('Signed in with Google!', 'تم تسجيل الدخول بـ Google!'));
-      router.push('/dashboard');
+      // Page navigates away to Google — code below never runs
     } catch {
       toast.error(t('Google sign-in failed.', 'فشل تسجيل الدخول بـ Google.'));
-    } finally {
       setLoading(false);
     }
   }

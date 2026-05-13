@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -31,8 +31,15 @@ export default function RegisterPage() {
   const { lang, setLang } = useLang();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, firebaseUser, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  // Redirect to dashboard when returning from Google redirect sign-in
+  useEffect(() => {
+    if (!authLoading && firebaseUser) {
+      router.push('/dashboard');
+    }
+  }, [firebaseUser, authLoading, router]);
 
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en);
 
@@ -62,11 +69,9 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signInWithGoogle();
-      toast.success(t('Account created!', 'تم إنشاء الحساب!'));
-      router.push('/dashboard');
+      // Page navigates away to Google — code below never runs
     } catch {
       toast.error(t('Failed. Try again.', 'فشل. حاول مرة أخرى.'));
-    } finally {
       setLoading(false);
     }
   }

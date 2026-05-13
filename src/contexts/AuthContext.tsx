@@ -8,7 +8,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   sendPasswordResetEmail,
   updateProfile,
 } from 'firebase/auth';
@@ -41,6 +42,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    // Handle the result when returning from a Google redirect sign-in
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          const user = result.user;
+          const existing = await getUserProfile(user.uid);
+          if (!existing) {
+            await createUserProfile({
+              uid: user.uid,
+              email: user.email ?? '',
+              displayName: user.displayName ?? '',
+              displayNameAr: user.displayName ?? '',
+              role: 'student' as UserRole,
+              isActive: true,
+            });
+          }
+        }
+      })
+      .catch(() => {});
+
     const unsub = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
@@ -59,19 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithGoogle() {
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    const existing = await getUserProfile(user.uid);
-    if (!existing) {
-      await createUserProfile({
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? '',
-        displayNameAr: user.displayName ?? '',
-        role: 'student' as UserRole,
-        isActive: true,
-      });
-    }
+    await signInWithRedirect(auth, provider);
+    // Page navigates away — result is handled in getRedirectResult above
   }
 
   async function signUp(email: string, password: string, displayName: string, displayNameAr: string) {
