@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithGoogle() {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     await signInWithRedirect(auth, provider);
     // Page navigates away — result is handled in getRedirectResult above
   }
